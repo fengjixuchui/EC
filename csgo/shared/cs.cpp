@@ -336,14 +336,24 @@ vec2 cs::player::get_vec_punch(C_Player player_address)
 
 vec2 cs::player::get_viewangles(C_Player player_address)
 {
-	vec2 old_viewangles{};
+	vec2 va{};
 
-	if (!vm::read(csgo_handle, (QWORD)(player_address + m_vecOldViewAngles), &old_viewangles, sizeof(old_viewangles)))
+	if (dwViewAngles != 0)
 	{
-		old_viewangles.x = 0;
-		old_viewangles.y = 0;
+		if (!vm::read(csgo_handle, dwViewAngles, &va, sizeof(va)))
+		{
+			va.x = 0;
+			va.y = 0;
+		}
+		return va;
 	}
-	return old_viewangles;
+
+	if (!vm::read(csgo_handle, (QWORD)(player_address + m_vecOldViewAngles), &va, sizeof(va)))
+	{
+		va.x = 0;
+		va.y = 0;
+	}
+	return va;
 }
 
 int cs::player::get_fov(C_Player player_address)
@@ -865,6 +875,8 @@ static BOOL cs::initialize(void)
 		use_dormant_check = 0;
 	}
 
+	dwViewAngles = 0;
+
 	client_dll = (DWORD)vm::get_module(csgo_handle, S("client.dll"));
 	if (client_dll == 0)
 	{
@@ -955,18 +967,29 @@ static BOOL cs::initialize(void)
 	g_Teams = vm::read_i32(csgo_handle,
 		vm::get_relative_address(csgo_handle, (QWORD)(GetLocalTeam + 0x1D), 1, 5) + 0x10 + 1);
 
-	/* dwViewAngles = (DWORD)vm::scan_pattern_direct(csgo_handle, engine_dll, "\x00\x0F\x11\x05\x00\x00\x00\x00\xF3\x0F", S("xxxx????xx"), 10);
-	if (dwViewAngles == 0)
+	if (C_BasePlayer == 0)
 	{
 #ifdef DEBUG
-		LOG("[-] failed to find dwViewAngles\n");
+		LOG("[-] failed to find C_BasePlayer\n");
 #endif
 		goto cleanup;
 	}
 
-	dwViewAngles += 4;
-	dwViewAngles = vm::read_i32(csgo_handle, dwViewAngles);
-	dwViewAngles += 0xC; */
+	if (g_TeamCount == 0)
+	{
+#ifdef DEBUG
+		LOG("[-] failed to find g_TeamCount\n");
+#endif
+		goto cleanup;
+	}
+
+	if (g_Teams == 0)
+	{
+#ifdef DEBUG
+		LOG("[-] failed to find g_Teams\n");
+#endif
+		goto cleanup;
+	}
 
 	VClientEntityList = (DWORD)vm::scan_pattern_direct(csgo_handle, engine_dll, "\x8A\x47\x12\x8B\x0D", S("xxxxx"), 5);
 	if (VClientEntityList == 0)
@@ -997,6 +1020,28 @@ static BOOL cs::initialize(void)
 		LOG("[-] failed to find dwGetAllClasses\n");
 #endif
 		goto cleanup;
+	}
+
+	if (vm::process_exists(S("Gamers Club AC")))
+	{
+		dwViewAngles = (DWORD)vm::scan_pattern_direct(csgo_handle, engine_dll, "\x00\x0F\x11\x05\x00\x00\x00\x00\xF3\x0F", S("xxxx????xx"), 10);
+		if (dwViewAngles == 0)
+		{
+			#ifdef DEBUG
+			LOG("[-] failed to find dwViewAngles\n");
+			#endif
+			goto cleanup;
+		}
+		dwViewAngles += 4;
+		dwViewAngles = vm::read_i32(csgo_handle, dwViewAngles);
+		if (dwViewAngles == 0)
+		{
+			#ifdef DEBUG
+			LOG("[-] failed to find dwViewAngles\n");
+			#endif
+			goto cleanup;
+		}
+		dwViewAngles += 0xC;
 	}
 
 	dwGetAllClasses = vm::read_i32(csgo_handle, (QWORD)vm::read_i32(csgo_handle, (QWORD)(dwGetAllClasses + 2)));
@@ -1035,6 +1080,33 @@ static BOOL cs::initialize(void)
 	}
 
 #ifdef DEBUG
+	LOG("IInputSystem             0x%lx\n", IInputSystem            );
+	LOG("VEngineCvar              0x%lx\n", VEngineCvar             );
+	LOG("sensitivity              0x%lx\n", sensitivity             );
+	LOG("mp_teammates_are_enemies 0x%lx\n", mp_teammates_are_enemies);
+	LOG("C_BasePlayer             0x%lx\n", C_BasePlayer            );
+	LOG("g_TeamCount              0x%lx\n", g_TeamCount             );
+	LOG("g_Teams                  0x%lx\n", g_Teams                 );
+	LOG("dwViewAngles             0x%lx\n", dwViewAngles            );
+	LOG("VClientEntityList        0x%lx\n", VClientEntityList       );
+	LOG("dwGetAllClasses          0x%lx\n", dwGetAllClasses         );
+	LOG("dwClientState            0x%lx\n", dwClientState           );
+	LOG("netvar_status            0x%lx\n", netvar_status           );
+	LOG("m_iHealth                0x%lx\n", m_iHealth               );
+	LOG("m_vecViewOffset          0x%lx\n", m_vecViewOffset         );
+	LOG("m_lifeState              0x%lx\n", m_lifeState             );
+	LOG("m_vecPunch               0x%lx\n", m_vecPunch              );
+	LOG("m_iFOV                   0x%lx\n", m_iFOV                  );
+	LOG("m_vecOldViewAngles       0x%lx\n", m_vecOldViewAngles      );
+	LOG("m_iTeamNum               0x%lx\n", m_iTeamNum              );
+	LOG("m_bSpottedByMask         0x%lx\n", m_bSpottedByMask        );
+	LOG("m_vecOrigin              0x%lx\n", m_vecOrigin             );
+	LOG("m_hActiveWeapon          0x%lx\n", m_hActiveWeapon         );
+	LOG("m_iShotsFired            0x%lx\n", m_iShotsFired           );
+	LOG("m_iCrossHairID           0x%lx\n", m_iCrossHairID          );
+	LOG("m_bHasDefuser            0x%lx\n", m_bHasDefuser           );
+	LOG("m_bIsDefusing            0x%lx\n", m_bIsDefusing           );
+	LOG("m_dwBoneMatrix           0x%lx\n", m_dwBoneMatrix          );
 	LOG("[+] csgo.exe is running\n");
 #endif
 

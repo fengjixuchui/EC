@@ -86,7 +86,14 @@ C_Player apex::teams::get_local_player(void)
 
 float apex::engine::get_sensitivity(void)
 {
-	return vm::read_float(apex_handle, sensitivity);
+	//
+	// return vm::read_float(apex_handle, sensitivity);
+	//
+
+	//
+	// I don't have apex installed to make proper fix
+	//
+	return 2.5f;
 }
 
 DWORD apex::engine::get_current_tick(void)
@@ -268,14 +275,16 @@ static BOOL apex::initialize(void)
 		goto cleanup;
 	}
 
-	IClientEntityList = vm::get_relative_address(apex_handle, IClientEntityList, 3, 7);
-	IClientEntityList = IClientEntityList + 0x08;
-	if (IClientEntityList == (QWORD)0x08)
 	{
-#ifdef DEBUG
-		LOG("[-] failed to find IClientEntityList\n");
-#endif
-		goto cleanup;
+		temp_address = vm::get_relative_address(apex_handle, IClientEntityList, 3, 7);
+		if (temp_address == (IClientEntityList + 0x07))
+		{
+	#ifdef DEBUG
+			LOG("[-] failed to find IClientEntityList\n");
+	#endif
+			goto cleanup;
+		}
+		IClientEntityList = temp_address + 0x08;
 	}
 
 	C_BasePlayer = vm::scan_pattern_direct(apex_handle, apex_base, "\x89\x41\x28\x48\x8B\x05\x00\x00\x00\x00\x48\x85\xC0", "xxxxxx????xxx", 13);
@@ -288,13 +297,18 @@ static BOOL apex::initialize(void)
 	}
 
 	C_BasePlayer = C_BasePlayer + 0x03;
-	C_BasePlayer = vm::get_relative_address(apex_handle, C_BasePlayer, 3, 7);
-	if (C_BasePlayer == 0)
+
+
 	{
-#ifdef DEBUG
-		LOG("[-] failed to find dwLocalPlayer\n");
-#endif
-		goto cleanup;
+		temp_address = vm::get_relative_address(apex_handle, C_BasePlayer, 3, 7);
+		if (temp_address == (C_BasePlayer + 0x07))
+		{
+	#ifdef DEBUG
+			LOG("[-] failed to find dwLocalPlayer\n");
+	#endif
+			goto cleanup;
+		}
+		C_BasePlayer = temp_address;
 	}
 
 	IInputSystem = vm::scan_pattern_direct(apex_handle, apex_base,
@@ -340,6 +354,7 @@ static BOOL apex::initialize(void)
 		goto cleanup;
 	}
 
+	/*
 	sensitivity = vm::scan_pattern_direct(apex_handle, apex_base,
 		"\x48\x8B\x05\x00\x00\x00\x00\xF3\x0F\x10\x3D\x00\x00\x00\x00\xF3\x0F\x10\x70\x68", "xxx????xxxx????xxxxx", 20);
 	
@@ -360,6 +375,7 @@ static BOOL apex::initialize(void)
 #endif
 		goto cleanup;
 	}
+	*/
 
 
 	if (netvar_status == 0)
