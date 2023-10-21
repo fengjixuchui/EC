@@ -7,6 +7,11 @@ extern "C" __declspec(dllimport) BOOLEAN PsGetProcessExitProcessCalled(PEPROCESS
 extern "C" __declspec(dllimport) PVOID PsGetProcessPeb(PEPROCESS);
 extern "C" __declspec(dllimport) PVOID PsGetProcessWow64Process(PEPROCESS);
 
+namespace km
+{
+	extern BOOL memcpy_impl(void *dest, const void *src, QWORD size);
+}
+
 static vm_handle get_process_by_name(PCSTR process_name)
 {
 	QWORD process;
@@ -90,8 +95,7 @@ BOOL vm::read(vm_handle process, QWORD address, PVOID buffer, QWORD length)
 	{
 		return 0;
 	}
-	memcpy(buffer, (PVOID)address, length);
-	return 1;
+	return km::memcpy_impl(buffer, (PVOID)address, length);
 }
 
 BOOL vm::write(vm_handle process, QWORD address, PVOID buffer, QWORD length)
@@ -117,8 +121,7 @@ BOOL vm::write(vm_handle process, QWORD address, PVOID buffer, QWORD length)
 	{
 		return 0;
 	}
-	memcpy((void *)address, buffer, length);
-	return 1;
+	return km::memcpy_impl((void *)address, buffer, length);
 }
 
 QWORD vm::get_peb(vm_handle process)
